@@ -26,6 +26,8 @@
 #include "packet/packet_builder.h"
 #include "storage/storage_module.h"
 
+#define HCI_GRP_VENDOR_SPECIFIC (0x3F << 10) /* 0xFC00 */
+
 namespace bluetooth {
 namespace hci {
 using bluetooth::common::BindOn;
@@ -190,6 +192,10 @@ struct HciLayer::impl {
       LOG_ERROR("Discarding event that came after timeout 0x%02hx (%s)", op_code, OpCodeText(op_code).c_str());
       return;
     }
+    /* Workaround FW issue where HCI group mask is missing */
+    if (((static_cast<int>(waiting_command_) & HCI_GRP_VENDOR_SPECIFIC) == HCI_GRP_VENDOR_SPECIFIC) &&
+        ((static_cast<int>(op_code) & HCI_GRP_VENDOR_SPECIFIC) == 0))
+      op_code = static_cast<OpCode>(static_cast<int>(op_code) | HCI_GRP_VENDOR_SPECIFIC);
     ASSERT_LOG(
         waiting_command_ == op_code,
         "Waiting for 0x%02hx (%s), got 0x%02hx (%s)",
